@@ -16,7 +16,27 @@
 
 % Loop through pairs of simultaneous pre-training datasets (i=1:12), then
 % pairs of simultaneous post-training datasets (i=13:24)
-for i = 1:24
+%% Loading files in one batch
+
+cd ('D:\Mega\Temporary_testing_files') % Path
+filePath = 'D:\Mega\Temporary_testing_files';
+rawDataFiles = dir('*.hdf5'); % Change extension accordingly
+% 1. Load dataset in one batch
+for SubjID = 1:length(rawDataFiles)
+    loadName = rawDataFiles(SubjID).name;
+    dataName = loadName(1:end-5); 
+    
+    % Import data (*.hdf5)
+    EEG = pop_loadhdf5(dataName,loadName,filePath);
+%     EEG.setname = dataName;
+end
+% Problematic eeglab redraw !!!!
+eeglab redraw  
+
+% 2. Load channel location
+
+%% Pre-processing
+for i = 1
     % EEG1 is the first dataset of the pair, whilst EEG2 is the second
     [EEG, ALLEEG, CURRENTSET] = eeg_retrieve(ALLEEG,i*2-1);
     saveName1 = [EEG.setname '_PP']; %adding 'PP' (PreProcessed) to the end 
@@ -61,8 +81,8 @@ for i = 1:24
     % The idea here is that we want to remove the same data in each dataset
     % so that we have clean data on both participants to conduct analysis.
     % (Probably a better way to do this but here is my workaround anyway).
-    EEG1 = clean_rawdata(EEG1, 5, [0.25 0.75], 0.8, 4, 20, 0.1);
-    EEG2 = clean_rawdata(EEG2, 5, [0.25 0.75], 0.8, 4, 20, 0.1); 
+    EEG1 = clean_rawdata(EEG1, 5, [0.25 0.75], 0.8, 3, 20, 0.25);
+    EEG2 = clean_rawdata(EEG2, 5, [0.25 0.75], 0.8, 3, 20, 0.25); 
     % Here a fairly aggressive time window rejection parameter of 0.1 is
     % used, and as a result our 120 second datasets are reduced to as low
     % as 30 seconds of really clean data for analysis (after further
@@ -158,21 +178,44 @@ for i = 1:24
     % Therefore, the last stage of pre-processing is done manually in 
     % eeglab, using tools -> reject data using ICA -> reject components by 
     % map. See http://mikexcohen.com/lectures.html for help here.
-    EEG1 = eeg_checkset( EEG1 );
-    EEG1 = pop_runica(EEG1, 'extended',1,'interupt','on'); 
+%     EEG1 = eeg_checkset( EEG1 );
+%     EEG1 = pop_runica(EEG1, 'extended',1,'interupt','on'); 
+% 
+%     EEG2 = eeg_checkset( EEG2 );
+%     EEG2 = pop_runica(EEG2, 'extended',1,'interupt','on'); 
 
-    EEG2 = eeg_checkset( EEG2 );
-    EEG2 = pop_runica(EEG2, 'extended',1,'interupt','on'); 
-
-    EEG1 = eeg_checkset(EEG1, 'ica');
-    EEG2 = eeg_checkset(EEG2, 'ica');
+%     EEG1 = eeg_checkset(EEG1, 'ica');
+%     EEG2 = eeg_checkset(EEG2, 'ica');
     
     % Save files (remember to inspect independent components before
     % analysing data)
-    pathname1 = ['D:\Github\Hyperscanning\Testing1' saveName1 '.set']
+    pathname1 = ['G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis' saveName1 '.set']
     [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG1, 1,'setname',saveName1,'savenew',pathname1,'gui','off');
-    pathname2 = ['D:\Github\Hyperscanning\Testing1' saveName2 '.set']
+    pathname2 = ['G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis' saveName2 '.set']
     [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG2, 1,'setname',saveName2,'savenew',pathname2,'gui','off');
+    
 end
 
 eeglab redraw
+
+%% Importing EEGLAB into text file
+% Creating file name in batch (Done)
+baseName = 'Exp1_S';
+endFile = '.txt';
+for k = 1:2
+    FileName = [baseName,num2str(k), endFile];
+    pop_export(ALLEEG(k),FileName,'transpose','on','precision',4); % Exporting into txt file
+end
+
+
+
+%% Saving files (Progress unfinished)
+pop_export(EEG,'G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis\\Exp1_S1.txt','transpose','on','precision',4);
+% Step 2 : Import txt file using into MATLAB using a function
+% imporTxt = imporTxtFile('Exp1_S2.txt');
+% Step 3 : Take only data from the table
+% cleanTxt = [imporTxt.FP1(2:end), imporTxt.FP2(2:end), imporTxt.F7(2:end), imporTxt.F8(2:end), imporTxt.F3(2:end), imporTxt.F4(2:end),...
+            [imporTxt.FZ(2:end),  imporTxt.T8(2:end),  imporTxt.T7(2:end), imporTxt.C4(2:end), imporTxt.C3(2:end), imporTxt.Cz(2:end),...
+            imporTxt.P3(2:end), imporTxt.P4(2:end), imporTxt.O1(2:end), imporTxt.O2(2:end)];
+% Step 4 : Save the variable into csv format with pre-defined column names
+% xlswrite('newfileformat.csv', templatefile, 1,'A2')
