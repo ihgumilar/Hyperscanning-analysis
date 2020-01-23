@@ -12,29 +12,61 @@
 % The pre-processing steps I have used come mainly from Makoto's
 % pre-processing pipeline, with modifications to suit our purposes
 
-% Author: Gus Stone
+% Original code by Gus Stone and Revised by Ihshan Gumilar
 
 % Loop through pairs of simultaneous pre-training datasets (i=1:12), then
 % pairs of simultaneous post-training datasets (i=13:24)
-%% Loading files in one batch
 
-cd ('D:\Mega\Temporary_testing_files') % Path
-filePath = 'D:\Mega\Temporary_testing_files';
-rawDataFiles = dir('*.hdf5'); % Change extension accordingly
-% 1. Load dataset in one batch
-for SubjID = 1:length(rawDataFiles)
-    loadName = rawDataFiles(SubjID).name;
-    dataName = loadName(1:end-5); 
-    
-    % Import data (*.hdf5)
-    EEG = pop_loadhdf5(dataName,loadName,filePath);
-%     EEG.setname = dataName;
-end
-% Problematic eeglab redraw !!!!
-eeglab redraw  
+% %% SETTING UP EEG AND PREPARING FOR EEGLAB RELATED FILES
+% clear;
+% % Running EEGLAB
+% [ALLEEG, EEG, CURRENTSET, ALLCOM] = eeglab;
+% % DEFINING VARIABLES RELATED TO FILE
+% 
+% % Defining a variable that has a path of raw_files
+% raw_files = 'D:\Mega\Temporary_testing_files';
+% 
+% % Putting all raw files into variable SetFiles (structure array)
+% SetFiles = dir(['Hyper1a_*.hdf5']);
+% 
+% %% SORTING THE NAME CORRECTLY IN THE STRUCTURE (SETFILES.NAME)
+% 
+% % extract the numbers
+%   filenames = {SetFiles.name};   
+%   filenum = cellfun(@(x)sscanf(x,'Hyper1a_%d.hdf5'), filenames);
+% 
+% % sort them, and get the sorting order
+%   [~,Sidx] = sort(filenum); 
+% 
+% % use to this sorting order to sort the filenames
+%   SetFiles = SetFiles(Sidx);
+%   close;
+% 
+% %% Loading files in one batch
+% ALLEEG = [];
+% for SubjID = 1: length(SetFiles) 
+%     loadName = SetFiles(SubjID).name;    
+%     % Loading raw files to EEGLAB
+%     EEG = pop_loadhdf5('filename',loadName,'filepath',raw_files,'rejectchans',[],'ref_ch',[]);% no pop-up window
+%     % Update one by one
+%     [ALLEEG,EEG,CURRENTSET] = pop_newset(ALLEEG, EEG, 1,'gui','off'); 
+%     % Loading a standard EEG channel location
+%     StandChanLocs = 'C:\\Program Files\\eeglab14_1_2b\\plugins\\dipfit2.3\\standard_BESA\\standard-10-5-cap385.elp';
+%     % Loading a customized EEG channel locations (16 channels)
+%     CustomChanLocs    = 'G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis\channel_location_16.ced';
+%     % Integrating the customized (16 channel) locations into each EEG dataset
+%     EEG = pop_chanedit(EEG, 'lookup',StandChanLocs,'load',{CustomChanLocs 'filetype' 'autodetect'});
+%     [ALLEEG EEG] = eeg_store(ALLEEG, EEG, CURRENTSET);
+% end
+% eeglab redraw
 
-% 2. Load channel location
-
+%% Loading files in a batch
+RawFilesPath = 'D:\Mega\Temporary_testing_files';
+RawFilesName = 'Hyper1a_%d.hdf5';
+StandChanLocsPath = 'C:\\Program Files\\eeglab14_1_2b\\plugins\\dipfit2.3\\standard_BESA\\standard-10-5-cap385.elp';
+CustomChanLocsPath = 'G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis\channel_location_16.ced';
+% Calling function (still need some work. File not loading in GUI yet)
+EEGdata = loadEEGdata(RawFilesPath, RawFilesName, StandChanLocsPath, CustomChanLocsPath);
 %% Pre-processing
 for i = 1
     % EEG1 is the first dataset of the pair, whilst EEG2 is the second
@@ -195,27 +227,25 @@ for i = 1
     [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG2, 1,'setname',saveName2,'savenew',pathname2,'gui','off');
     
 end
-
+ALLEEG(1:2) = [];
 eeglab redraw
 
 %% Importing EEGLAB into text file
-% Creating file name in batch (Done)
 baseName = 'Exp1_S';
 endFile = '.txt';
-for k = 1:2
+for k = 1:length(SetFiles)
     FileName = [baseName,num2str(k), endFile];
     pop_export(ALLEEG(k),FileName,'transpose','on','precision',4); % Exporting into txt file
 end
 
 
-
 %% Saving files (Progress unfinished)
-pop_export(EEG,'G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis\\Exp1_S1.txt','transpose','on','precision',4);
+% pop_export(EEG,'G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis\\Exp1_S1.txt','transpose','on','precision',4);
 % Step 2 : Import txt file using into MATLAB using a function
 % imporTxt = imporTxtFile('Exp1_S2.txt');
 % Step 3 : Take only data from the table
 % cleanTxt = [imporTxt.FP1(2:end), imporTxt.FP2(2:end), imporTxt.F7(2:end), imporTxt.F8(2:end), imporTxt.F3(2:end), imporTxt.F4(2:end),...
-            [imporTxt.FZ(2:end),  imporTxt.T8(2:end),  imporTxt.T7(2:end), imporTxt.C4(2:end), imporTxt.C3(2:end), imporTxt.Cz(2:end),...
-            imporTxt.P3(2:end), imporTxt.P4(2:end), imporTxt.O1(2:end), imporTxt.O2(2:end)];
+%             [imporTxt.FZ(2:end),  imporTxt.T8(2:end),  imporTxt.T7(2:end), imporTxt.C4(2:end), imporTxt.C3(2:end), imporTxt.Cz(2:end),...
+%             imporTxt.P3(2:end), imporTxt.P4(2:end), imporTxt.O1(2:end), imporTxt.O2(2:end)];
 % Step 4 : Save the variable into csv format with pre-defined column names
 % xlswrite('newfileformat.csv', templatefile, 1,'A2')
