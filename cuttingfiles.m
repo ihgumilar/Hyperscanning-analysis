@@ -1,13 +1,30 @@
-% Objective: Chunking the data into pre-training(trigger 1) and post-training(trigger 3)
-% Progress : 1. Loading original files (*.hdf5)
-%            2. Cut file into 120 seconds duration (pre-training) 
-%            3. Cut file into 120 seconds duration (post-training)
-%            4. Pre-processing files, 1st pair not working (finding why ?)
+% Objective :To chunk the data into pre-training(trigger 1) and
+%            post-training(trigger 3) as well as pre-processing.
+%            The pre-processing steps are based on Makoto's pre-processing
+%            procedure. The pre-processing codes were initially developed 
+%            by Gus Stone.
+%            
+%            This code was mainly created for processing EEG data in pair
+%            (hyperscanning study particularly),eg. Subject 1 & Subject 2 always go
+%            together and are preprocessed in pair.
+%
+% Sections  :STAGE 1 : Load original raw files of EEG (*.hdf5)
+%            STAGE 2 : Cut only the 120 seconds of pre-training files (trigger 1) & save them as *.set
+%            STAGE 3 : Cut only the 120 seconds of post-training files (trigger 3) & save them as *.set
+%            STAGE 4 : (Optional) Load the cut files (120 seconds,*.set)- PRE-TRAINING/POST-TRAINING
+%                      (Note: Use this only if we have a break in the stage 3)
+%            STAGE 5 : Pre-process EEG data
+%            STAGE 6 : Export pre-processed data into txt files
 %
 % Future development : 1. Filter the data with different frequency resolution for each band
-%% Step 1 : Load original raw files of EEG (*.hdf5)
+%
+% Contact : Ihshan Gumilar
+%           igum002@aucklanduni.ac.nz
+%           https://unidirectory.auckland.ac.nz/profile/igum002
+%% STAGE 1 : Load original raw files of EEG (*.hdf5)
+
 clear;
-% Running EEGLAB
+% Start the EEGLAB
 [ALLEEG, EEG, CURRENTSET, ALLCOM] = eeglab;
 
 % Change the option to use double precision
@@ -17,17 +34,17 @@ pop_editoptions( 'option_storedisk', 0, 'option_savetwofiles', 1,...
         'option_rememberfolder', 1, 'option_donotusetoolboxes', 0,...
         'option_checkversion', 1, 'option_chat', 0);
 
-% Defining a variable that has a path of raw_files
+% Direct to a folder of raw files and define a variable with a path of the raw files
 cd 'G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis'           % CHANGE HERE
 raw_files = 'G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis'; % CHANGE HERE
 
 % Putting all raw files into variable SetFiles (structure array)
-SetFiles = dir(['Hyper1a_*.hdf5']);
+SetFiles = dir(['Hyper3a_*.hdf5']); % CHANGE HERE
 
 % Sorting the name correctly in the structure (Setfiles.name)
 % extract the numbers
   filenames = {SetFiles.name};   
-  filenum = cellfun(@(x)sscanf(x,'Hyper1a_%d.hdf5'), filenames);
+  filenum = cellfun(@(x)sscanf(x,'Hyper3a_%d.hdf5'), filenames); % CHANGE HERE
 
 % sort them, and get the sorting order
   [~,Sidx] = sort(filenum); 
@@ -36,24 +53,24 @@ SetFiles = dir(['Hyper1a_*.hdf5']);
   SetFiles = SetFiles(Sidx);
   close;
 
-% Loading the raw files (*.hdf5) in one batch
+% Load the raw files (*.hdf5) in one batch
 ALLEEG = [];
 for SubjID = 1: length(SetFiles) 
     loadName = SetFiles(SubjID).name;    
-    % Loading raw files to EEGLAB
+    % Load the raw files to EEGLAB
     EEG = pop_loadhdf5('filename',loadName,'filepath',raw_files,'rejectchans',[],'ref_ch',[]);% no pop-up window
-    % Update one by one
+    % Update EEGLAB dataset one by one
     [ALLEEG,EEG,CURRENTSET] = pop_newset(ALLEEG, EEG, 1,'gui','off'); 
-    % Loading a standard EEG channel location
-    StandChanLocs = 'C:\\Program Files\\eeglab14_1_2b\\plugins\\dipfit2.3\\standard_BESA\\standard-10-5-cap385.elp';
-    % Loading a customized EEG channel locations (16 channels)
-    CustomChanLocs    = 'G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis\channel_location_16.ced';
-    % Integrating the customized (16 channel) locations into each EEG dataset
+    % Load a standard EEG channel location
+    StandChanLocs = 'C:\\Program Files\\eeglab14_1_2b\\plugins\\dipfit2.3\\standard_BESA\\standard-10-5-cap385.elp'; % CHANGE HERE
+    % Load a customized EEG channel locations (16 channels)
+    CustomChanLocs = 'G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis\channel_location_16.ced'; % CHANGE HERE
+    % Integrate the customized (16 channel) locations into each EEG dataset
     EEG = pop_chanedit(EEG, 'lookup',StandChanLocs,'load',{CustomChanLocs 'filetype' 'autodetect'});
     [ALLEEG, EEG] = eeg_store(ALLEEG, EEG, CURRENTSET);
 end
 % eeglab redraw
-%% Step 2 : Cut only the 120 seconds of pre-training files (trigger 1) & save them as *.set
+%% STAGE 2 : Cut only the 120 seconds of pre-training files (trigger 1) & save them as *.set
 
 for SubjID = 1: length(SetFiles) 
     % Load the raw file one by one
@@ -61,14 +78,14 @@ for SubjID = 1: length(SetFiles)
     % Cut the file from trigger 1 (120 seconds)
     EEG = pop_rmdat( EEG, {'Trigger 1'},[1 120] ,0);
     % Set the name for files that have been cut off
-    saveName_pre = [EEG.setname '_Pre']; % CHANGE HERE
+    saveName_pre = [EEG.setname '_Pre'];            % CHANGE HERE
     [ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, SubjID,'setname',saveName_pre,'gui','off'); 
     % Save the files
-    EEG = pop_saveset( EEG, 'filename',saveName_pre,'filepath','G:\\My Drive\\PhD_related_stuff\\Codes\\Exp1_preTraining'); % CHANGE HERE
+    EEG = pop_saveset( EEG, 'filename',saveName_pre,'filepath','G:\\My Drive\\PhD_related_stuff\\Codes\\Exp3_preTraining\\'); % CHANGE HERE
     [ALLEEG EEG] = eeg_store(ALLEEG, EEG, CURRENTSET);   
 end
-% eeglab redraw
-%% Step 3 : Cut only the 120 seconds of post-training files (trigger 3) & save them as *.set
+
+%% STAGE 3 : Cut only the 120 seconds of post-training files (trigger 3) & save them as *.set
 
 for SubjID = 1: length(SetFiles) 
     % Load the raw file one by one
@@ -76,40 +93,90 @@ for SubjID = 1: length(SetFiles)
     % Cut the file from trigger 3 (120 seconds)
     EEG = pop_rmdat( EEG, {'Trigger 3'},[1 120] ,0);
     % Set the name for files that have been cut off
-    saveName_post = [EEG.setname '_Post']; % CHANGE HERE
+    saveName_post = [EEG.setname '_Post'];           % CHANGE HERE
     [ALLEEG, EEG, CURRENTSET] = pop_newset(ALLEEG, EEG, SubjID,'setname',saveName_post,'gui','off');
     % Save the files
-    EEG = pop_saveset( EEG, 'filename',saveName_post,'filepath','G:\My Drive\PhD_related_stuff\Codes\Exp1_posTraining'); % CHANGE HERE
+    EEG = pop_saveset( EEG, 'filename',saveName_post,'filepath','G:\My Drive\PhD_related_stuff\Codes\Exp3_posTraining\\'); % CHANGE HERE
     [ALLEEG, EEG] = eeg_store(ALLEEG, EEG, CURRENTSET);   
 end
 ALLEEG(1:24) = []; % Delete the original raw files (*.hdf5)
-eeglab redraw
+% eeglab redraw
 
-%% Pre-processing the data.
-% (NOTE !) The 1st pair was excluded. Try to run with the whole data and find the issue with the first pair 
+%% STAGE 4: (Optional) Load the cut files (120 seconds,*.set)- PRE-TRAINING/POST-TRAINING
+%           (Note: Use this only if we have a break in the stage 3)
 
-for i = 1:length (ALLEEG) % We can adjust this according to the number of our data
+clear;
+% Start the EEGLAB
+[ALLEEG, EEG, CURRENTSET, ALLCOM] = eeglab;
+
+% Change the option to use double precision
+pop_editoptions( 'option_storedisk', 0, 'option_savetwofiles', 1,...
+        'option_saveversion6', 1, 'option_single', 0, 'option_memmapdata', 0,...
+        'option_eegobject', 0, 'option_computeica', 0, 'option_scaleicarms', 1,...
+        'option_rememberfolder', 1, 'option_donotusetoolboxes', 0,...
+        'option_checkversion', 1, 'option_chat', 0);
+
+% Direct to a folder of files to load and define a variable with a path of the files
+cd 'G:\My Drive\PhD_related_stuff\Codes\Exp3_posTraining\'           % CHANGE HERE
+raw_files = 'G:\My Drive\PhD_related_stuff\Codes\Exp3_posTraining\'; % CHANGE HERE
+
+% Put all raw files into variable SetFiles (structure array)
+SetFiles = dir(['Hyper3a_*.set']); % CHANGE HERE
+
+% Sort the name correctly in the structure (Setfiles.name)
+  filenames = {SetFiles.name};   
+
+% Extract the numbers
+  filenum = cellfun(@(x)sscanf(x,'Hyper3a_%d.set'), filenames); % CHANGE HERE
+
+% sort them, and get the sorting order
+  [~,Sidx] = sort(filenum); 
+
+% use to this sorting order to sort the filenames
+  SetFiles = SetFiles(Sidx);
+  close;
+
+% Load the raw files (*.set) in one batch
+ALLEEG = [];
+for SubjID = 1: length(SetFiles) 
+    loadName = SetFiles(SubjID).name;    
+    % Load the raw files to EEGLAB
+    EEG = pop_loadset('filename',loadName,'filepath',raw_files);
+    % Update EEGLAB dataset one by one
+    [ALLEEG,EEG,CURRENTSET] = pop_newset(ALLEEG, EEG, 1,'gui','off'); 
+    % Load a standard EEG channel location
+    StandChanLocs = 'C:\\Program Files\\eeglab14_1_2b\\plugins\\dipfit2.3\\standard_BESA\\standard-10-5-cap385.elp'; % CHANGE HERE
+    % Load a customized EEG channel locations (16 channels)
+    CustomChanLocs    = 'G:\My Drive\PhD_related_stuff\Codes\Hyperscanning-analysis\channel_location_16.ced'; % CHANGE HERE
+    % Integrate the customized (16 channel) locations into each EEG dataset
+    EEG = pop_chanedit(EEG, 'lookup',StandChanLocs,'load',{CustomChanLocs 'filetype' 'autodetect'});
+    [ALLEEG, EEG] = eeg_store(ALLEEG, EEG, CURRENTSET);
+end
+% eeglab redraw
+
+%% STAGE 5: Pre-processing
+
+% Each iteration takes the data in pair
+for i = 1:length(ALLEEG) % We can adjust this according to the number of our data
     disp(['Processing file...iteration ', num2str(i)])
    % EEG1 is the first dataset of the pair, whilst EEG2 is the second
     [EEG, ALLEEG, CURRENTSET] = eeg_retrieve(ALLEEG,i*2-1);
     saveName1 = [EEG.setname '_PP']; %adding 'PP' (PreProcessed) to the end 
-    EEG1 = EEG;
+    EEG1 = EEG; % e.g. Subject 1 or n
 
     [EEG, ALLEEG, CURRENTSET] = eeg_retrieve(ALLEEG,i*2);
     saveName2 = [EEG.setname '_PP']; %adding 'PP' (PreProcessed) to the end 
-    EEG2 = EEG;
+    EEG2 = EEG; % e.g. Subject 2 or n
 
     % STEP 1: High-pass filter and Low pass filter both
-    EEG1 = pop_eegfiltnew(EEG1,1,[],1690);
-    EEG2 = pop_eegfiltnew(EEG2,1,[],1690);
+    EEG1 = pop_eegfiltnew(EEG, 1,40,2800,0,[],0);
+    EEG2 = pop_eegfiltnew(EEG, 1,40,2800,0,[],0);
 
-
-    % Keeping original EEG files
+    % Keep original EEG files
     originalEEG1 = EEG1;
     originalEEG2 = EEG2;
 
-
-    % STEP 2: Removing line noise with cleanLine;
+    % STEP 2: Remove line noise with cleanLine;
     % electricity interference etc (requires plugin)
     EEG1 = pop_cleanline(EEG1,'Bandwidth',2,'ChanCompIndices',[1:EEG.nbchan],...
         'ComputeSpectralPower',0,'LineFrequencies',[60 120],...
@@ -125,7 +192,6 @@ for i = 1:length (ALLEEG) % We can adjust this according to the number of our da
 
 
     % STEP 3: clean_rawdata (requires plugin)
-
     % Keep copies for later
     EEG1_a = EEG1;
     EEG2_a = EEG2;
@@ -196,11 +262,9 @@ for i = 1:length (ALLEEG) % We can adjust this according to the number of our da
     EEG2 = pop_reref(EEG2, []); 
     EEG2 = pop_select( EEG2,'nochannel',{'initialReference'});
 
-
-    % STEP 5: Epoching data into continuous 1 second sections
+    % STEP 5: Epoch data into continuous 1 second sections
     EEG1 = eeg_regepochs(EEG1,'limits', [0 1] , 'extractepochs', 'on'); 
     EEG2 = eeg_regepochs(EEG2,'limits', [0 1] , 'extractepochs', 'on');
-
 
     % STEP 6: Perform automatic epoch rejection 
     [EEG1 rmepochs] = pop_autorej(EEG1, 'threshold', 500,'startprob',5,'maxrej', 5,'nogui','on');
@@ -211,26 +275,39 @@ for i = 1:length (ALLEEG) % We can adjust this according to the number of our da
 
     % STEP 7: Further automatic epoch rejection by probability 
     % (6SD single channel, 2SD for all channels)
-    EEG1 = eeg_checkset( EEG1 ); 
-    [EEG1, locthresh, globthresh, nrej, rej] = pop_jointprob(EEG1,1,[1:16],6,2,1,1,1,[],0);
-    rmepochs = find(rej);
-    EEG2 = pop_select(EEG2,'notrial',rmepochs);
-    EEG2 = eeg_checkset( EEG2 ); 
-    [EEG2, locthresh, globthresh, nrej, rej] = pop_jointprob(EEG2,1,[1:16],6,2,1,1,1,[],0);
-    rmepochs = find(rej);
-    EEG1 = pop_select(EEG1,'notrial',rmepochs);
+%     EEG1 = eeg_checkset( EEG1 ); 
+%     [EEG1, locthresh, globthresh, nrej, rej] = pop_jointprob(EEG1,1,[1:16],6,2,1,1,1,[],0);
+%     rmepochs = find(rej);
+%     EEG2 = pop_select(EEG2,'notrial',rmepochs);
+%     EEG2 = eeg_checkset( EEG2 ); 
+%     [EEG2, locthresh, globthresh, nrej, rej] = pop_jointprob(EEG2,1,[1:16],6,2,1,1,1,[],0);
+%     rmepochs = find(rej);
+%     EEG1 = pop_select(EEG1,'notrial',rmepochs);
     
-    % Saving files that have been pre-processed
-    pathname1 = ['G:\My Drive\PhD_related_stuff\Codes\PreProcessed\' saveName1 '.set']
+    % STEP 8: Save files that have been pre-processed
+    pathname1 = ['G:\My Drive\PhD_related_stuff\Codes\Exp3_posTraining\PreProcessed\' saveName1 '.set'] % CHANGE HERE
     [ALLEEG, EEG, CURRENTSET] = pop_newset(ALLEEG, EEG1, 1,'setname',saveName1,'savenew',pathname1,'gui','off');
-    pathname2 = ['G:\My Drive\PhD_related_stuff\Codes\PreProcessed\' saveName2 '.set']
-    [ALLEEG, EEG, CURRENTSET] = pop_newset(ALLEEG, EEG2, 1,'setname',saveName2,'savenew',pathname2,'gui','off');
-    
+    pathname2 = ['G:\My Drive\PhD_related_stuff\Codes\Exp3_posTraining\PreProcessed\' saveName2 '.set'] % CHANGE HERE
+    [ALLEEG, EEG, CURRENTSET] = pop_newset(ALLEEG, EEG2, 1,'setname',saveName2,'savenew',pathname2,'gui','off');    
 end
+% There is still throwing an error here, but still Ok and not a problem
+% It could be contributed by "Error in cuttingfiles (line 182)"
+ALLEEG(1:24) = [];
 eeglab redraw
 
+%% STAGE 6 : Export pre-processed data into txt files
 
-%% Save the pre-processed files into text file
-% (NOTE !) Make sure leave only the files that have been pre-processed with the
-% following code:  ALLEEG(1: n) = [];
-% Begin to export into text file
+% Set a path to save the txt files
+cd 'G:\My Drive\PhD_related_stuff\Codes\Exp3_posTraining\txt_files\' % CHANGE HERE
+
+% Set an initial name for each txt file
+baseName = 'Exp3_Post_S'; % CHANGE HERE
+endFile = '.txt';
+
+% Iteration of creating name file and exporting into txt files
+for k = 1:length(ALLEEG)
+    % Naming file with order number
+    FileName = [baseName,num2str(k), endFile];
+    % Exporting into txt file
+    pop_export(ALLEEG(k),FileName,'transpose','on','precision',4); 
+end
